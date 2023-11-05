@@ -1,7 +1,8 @@
 from PyQt6.QtWidgets import (QMainWindow, QApplication,
                              QVBoxLayout, QLineEdit, QPushButton,
                              QTableWidget, QTableWidgetItem, QDialog,
-                             QComboBox, QToolBar, QStatusBar, QLabel)
+                             QComboBox, QToolBar, QStatusBar,
+                             QGridLayout,QLabel, QMessageBox)
 from PyQt6.QtGui import QAction, QIcon
 import sys
 import sqlite3
@@ -14,19 +15,21 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(800, 600)
 
         file_menu_item = self.menuBar().addMenu("&File")
-        help_menu_item = self.menuBar().addMenu("&Help")
         edit_menu_item = self.menuBar().addMenu("&Edit")
+        help_menu_item = self.menuBar().addMenu("&Help")
+
 
         add_student_action = QAction(QIcon("icons/add.png"),"Add Student", self)
         add_student_action.triggered.connect(self.insert)
         file_menu_item.addAction(add_student_action)
 
-        about_action = QAction("About", self)
-        help_menu_item.addAction(about_action)
-
         search_action = QAction(QIcon("icons/search.png"), "Search", self)
         search_action.triggered.connect(self.search)
         edit_menu_item.addAction(search_action)
+
+        about_action = QAction("About", self)
+        help_menu_item.addAction(about_action)
+        about_action.triggered.connect(self.about)
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
@@ -49,6 +52,10 @@ class MainWindow(QMainWindow):
         # detect
         self.table.cellClicked.connect(self.cell_clicked)
 
+    def about(self):
+        dialog = AboutDialog()
+        dialog.exec()
+
     def cell_clicked(self):
         edit_button = QPushButton("Edit Record")
         edit_button.clicked.connect(self.edit)
@@ -64,9 +71,6 @@ class MainWindow(QMainWindow):
 
         self.statusbar.addWidget(edit_button)
         self.statusbar.addWidget(delete_button)
-
-
-
 
     def load_data(self):
         connection = sqlite3.connect("database.db")
@@ -246,12 +250,59 @@ class EditDialog(QDialog):
         main_window.load_data()
 
 
-
 class DeleteDialog(QDialog):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Delete Student Data")
+        self.setFixedWidth(300)
+        self.setFixedHeight(100)
+
+        layout = QGridLayout()
+        confirmation = QLabel("Are you sure you want to delete?")
+        yes = QPushButton("Yes")
+        no = QPushButton("No")
 
 
+        layout.addWidget(confirmation, 0,0,1,2)
+        layout.addWidget(yes, 1, 0)
+        layout.addWidget(no, 1, 1)
+        self.setLayout(layout)
+
+        yes.clicked.connect(self.delete_student)
+
+        no.clicked.connect(self.close)
+
+    def delete_student(self):
+        # get id from selected row
+        index = main_window.table.currentRow()
+        student_id = main_window.table.item(index, 0).text()
+        connection = sqlite3.connect("database.db")
+        cursor = connection.cursor()
+        cursor.execute("DELETE from students WHERE id = ?",
+                       (student_id, ))
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+        # refresh the table
+        main_window.load_data()
+
+        self.close()
+
+        confirmetion_widget = QMessageBox()
+        confirmetion_widget.Title("Success")
+        confirmetion_widget.setText("The record has been deleted")
+        confirmetion_widget.exec()
+
+class AboutDialog(QMessageBox):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("About")
+        content = """
+        This app is an example of a basic student database for 
+        schools and lesson registration prototype"""
+
+        self.setText(content)
 
 
 app = QApplication(sys.argv)
